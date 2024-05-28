@@ -6,11 +6,25 @@ from rest_framework import status
 from .permissions import *
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email, name, tc, password=None, password2=None):
         if not email:
             raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        if not email:
+            raise ValueError("Users must have an email address")
+
+        if password != password2:
+            raise ValueError("Passwords don't match")
+
+        """validate_password(password)
+
+        if password is not validate_password(password):
+            raise ValueError("One Captial , one numeric , one special, min_lenght = 8 ")"""
+
+        user = self.model(
+            email=self.normalize_email(email),
+            name=name,
+            tc=tc,
+        )
         user.set_password(password)
         user.save(using=self._db)
         return user
@@ -25,10 +39,11 @@ class UserManager(BaseUserManager):
             raise ValueError('Superuser must have is_superuser=True.')
 
         user = self.create_user(email, password, **extra_fields)
-        user.is_staff = True  # Ensure is_staff is set to True
+        user.is_staff = True
         user.is_superuser = True
         user.save(using=self._db)
         return user
+
 
 class User(AbstractBaseUser):
     email = models.EmailField(verbose_name="Email", max_length=300, unique=True,)

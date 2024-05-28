@@ -105,7 +105,7 @@ class SendPasswordResetEmailSerializer(serializers.Serializer):
             user = User.objects.get(email=email)
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = PasswordResetTokenGenerator().make_token(user)
-            link = 'http://localhost:8000/api/user/reset-password/' + uid + '/' + token + '/'
+            link = 'https://partcraft.onrender.com/api/user/reset-password/' + uid + '/' + token + '/'
             body = 'Your password reset link is ' + link
             data = {
                 'subject': 'Password reset',
