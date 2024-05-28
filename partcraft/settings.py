@@ -24,12 +24,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY')
+SECRET_KEY = 'django-insecure-i)(1v9cre!bg@6ok2^x!7-fig0h#6u6q&(b$0s((cklr2+95nj'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG') == 'True'
+DEBUG = True
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS').split(',')
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -104,8 +104,9 @@ DATABASES = {
         'PORT': '5432',
     }
 }
-database_url = os.environ.get("DATABASE_URL")
-DATABASES['default'] = dj_database_url.parse(database_url)
+
+DATABASES['default'] = dj_database_url.parse("postgres://partscraft_hpk6_user:4AAhFJPV5xuTzuEbCf4uMc04gGKWZ0ob@dpg-cpat0kcf7o1s73amfa10-a.oregon-postgres.render.com/partscraft_hpk6")
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
@@ -148,7 +149,7 @@ APPEND_SLASH = False
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = 'user.User'
+#AUTH_USER_MODEL = 'user.User'
 
 #simple jwt setting
 SIMPLE_JWT = {

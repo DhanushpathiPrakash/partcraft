@@ -6,39 +6,25 @@ from rest_framework import status
 from .permissions import *
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, name, tc, password=None, password2=None):
-        """
-        Creates and saves a User with the given email, name, password and tc.
-        """
+    def create_user(self, email, password=None, **extra_fields):
         if not email:
-            raise ValueError({"status": "error", "Message": "Users must have an email address"})
-
-        if password != password2:
-            raise ValueError({"status": "error", "Message": "Passwords must match"})
-
-        validate_password(password)
-        user = self.model(
-            email=self.normalize_email(email),
-            name=name,
-            tc=tc,
-        )
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, name, tc, password=None):
-        """
-        Creates and saves a superuser with the given email, name, password and tc.
-        """
-        user = self.create_user(
-            email,
-            password=password,
-            name=name,
-            tc=tc,
-        )
-        user.is_admin = True
-        user.save(using=self._db)
-        return user
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+
+        return self.create_user(email, password, **extra_fields)
 
 class User(AbstractBaseUser):
     email = models.EmailField(verbose_name="Email", max_length=300, unique=True,)
