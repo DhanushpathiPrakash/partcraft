@@ -104,6 +104,7 @@ DATABASES = {
     }
 }
 
+#chnage
 database_url = os.environ.get('database_url')
 DATABASES['default'] = dj_database_url.parse(database_url)
 
