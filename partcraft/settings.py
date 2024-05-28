@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-i)(1v9cre!bg@6ok2^x!7-fig0h#6u6q&(b$0s((cklr2+95nj
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -91,8 +91,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'partcraft.wsgi.application'
 
-ALLOWED_HOSTS = ['*']
-
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
@@ -107,6 +105,7 @@ DATABASES = {
     }
 }
 
+DATABASES['default'] = dj_database_url.parse("postgres://partscraft_user:UoHGmazZqroBVbrL5p7GegFVevobJoHz@dpg-cparhvkf7o1s73alkkig-a.oregon-postgres.render.com/partscraft")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
