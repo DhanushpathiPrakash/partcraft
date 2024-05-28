@@ -1,15 +1,31 @@
+from urllib import request
 from django.contrib.auth.password_validation import validate_password
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
+from rest_framework import status
+from .permissions import *
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
+    def create_user(self, email, name, tc, password=None, password2=None):
         if not email:
             raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        if password:
-            user.set_password(password)
+        if not email:
+            raise ValueError("Users must have an email address")
+
+        if password != password2:
+            raise ValueError("Passwords don't match")
+
+        """validate_password(password)
+
+        if password is not validate_password(password):
+            raise ValueError("One Captial , one numeric , one special, min_lenght = 8 ")"""
+
+        user = self.model(
+            email=self.normalize_email(email),
+            name=name,
+            tc=tc,
+        )
+        user.set_password(password)
         user.save(using=self._db)
         return user
 
@@ -22,10 +38,15 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
-        return self.create_user(email, password, **extra_fields)
+        user = self.create_user(email, password, **extra_fields)
+        user.is_staff = True
+        user.is_superuser = True
+        user.save(using=self._db)
+        return user
+
 
 class User(AbstractBaseUser):
-    email = models.EmailField(verbose_name="Email", max_length=300, unique=True)
+    email = models.EmailField(verbose_name="Email", max_length=300, unique=True,)
     name = models.CharField(verbose_name="Name", max_length=200)
     tc = models.BooleanField()
     is_verified = models.BooleanField(default=False)
@@ -47,13 +68,19 @@ class User(AbstractBaseUser):
         return self.email
 
     def has_perm(self, perm, obj=None):
+        "Does the user have a specific permission?"
+        # Simplest possible answer: Yes, always
         return self.is_admin
 
     def has_module_perms(self, app_label):
+        "Does the user have permissions to view the app `app_label`?"
+        # Simplest possible answer: Yes, always
         return True
 
     @property
     def is_staff(self):
+        "Is the user a member of staff?"
+        # Simplest possible answer: All admins are staff
         return self.is_admin
 
     @is_staff.setter
@@ -62,6 +89,7 @@ class User(AbstractBaseUser):
 
     @property
     def is_superuser(self):
+        "Is the user a superuser?"
         return self.is_admin
 
     @is_superuser.setter
