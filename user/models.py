@@ -24,7 +24,11 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
-        return self.create_user(email, password, **extra_fields)
+        user = self.create_user(email, password, **extra_fields)
+        user.is_staff = True  # Ensure is_staff is set to True
+        user.is_superuser = True
+        user.save(using=self._db)
+        return user
 
 class User(AbstractBaseUser):
     email = models.EmailField(verbose_name="Email", max_length=300, unique=True,)
@@ -63,3 +67,16 @@ class User(AbstractBaseUser):
         "Is the user a member of staff?"
         # Simplest possible answer: All admins are staff
         return self.is_admin
+
+    @is_staff.setter
+    def is_staff(self, value):
+        self.is_admin = value
+
+    @property
+    def is_superuser(self):
+        "Is the user a superuser?"
+        return self.is_admin
+
+    @is_superuser.setter
+    def is_superuser(self, value):
+        self.is_admin = value
