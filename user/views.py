@@ -26,7 +26,7 @@ class UserRegistrationView(APIView):
             email = serializer.validated_data['email']
             if User.objects.filter(email=email).exists():
                 return Response({"status": "success", "message": "User registered successfully", 'data': serializer.data }, status=status.HTTP_201_CREATED)
-        return Response({"status": "error", "message": "User email already exists. Please login instead."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"status": "error", "message": serializer.errors }, status=status.HTTP_400_BAD_REQUEST)
 
 class VerifyEmailView(APIView):
     serializer_class = VerifyEmailSerializer
