@@ -5,8 +5,8 @@ from django.db import models
 class Product(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     category = models.CharField(max_length=100)
-    image = models.ImageField(upload_to='product_images/')
-    logo = models.ImageField(upload_to='brand_logos/')
+    image = models.URLField(max_length=500)
+    logo = models.URLField(max_length=500)
     title = models.CharField(max_length=200)
     part_no = models.CharField(max_length=50)
     discount = models.CharField(max_length=20)
@@ -19,13 +19,13 @@ class Product(models.Model):
 class Brand(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     name = models.CharField(max_length=100)
-    image = models.ImageField(upload_to='brand_images/')
+    image = models.URLField(max_length=500)
 
 class Carousel(models.Model):
-    image = models.ImageField(upload_to='carousel_images/')
+    image = models.URLField(max_length=500)
     title = models.CharField(max_length=200)
 
 class Client(models.Model):
-    image = models.ImageField(upload_to='client_images/')
+    image = models.URLField(max_length=500)
     data = models.TextField()
     name = models.CharField(max_length=255)
