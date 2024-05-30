@@ -67,7 +67,7 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
 }
 
-SESSION_COOKIE_AGE = 1209600
+SESSION_COOKIE_AGE = 900000
 SESSION_COOKIE_SECURE = True
 
 ROOT_URLCONF = 'partcraft.urls'
