@@ -73,3 +73,15 @@ class ClientView(APIView):
         clients = Client.objects.all()
         serializer = ClientSerializer(clients, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, requser):
+        permission_classes = [IsAuthenticated, EditUser]
+        self.permission_classes = permission_classes
+        self.check_permissions(request)
+        serializer = ClientSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response("message:No Permission ", status=status.HTTP_404_NOT_FOUND)
+        return Response("message:No Permission ", status=status.HTTP_400_BAD_REQUEST)
