@@ -6,7 +6,8 @@ from rest_framework import status
 from .permissions import *
 
 class UserManager(BaseUserManager):
-    def create_user(self, email, name, tc, password=None, password2=None):
+    def create_user(self, email, name, tc, password=None, password2=None, **extra_fields):
+        print(name, password, password2)
         if not email:
             raise ValueError('The Email field must be set')
         if not email:
@@ -24,12 +25,14 @@ class UserManager(BaseUserManager):
             email=self.normalize_email(email),
             name=name,
             tc=tc,
+            **extra_fields
         )
         user.set_password(password)
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, password=None, **extra_fields):
+    def create_superuser(self, email, name, tc, password=None, **extra_fields):
+
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
 
@@ -38,7 +41,7 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
-        user = self.create_user(email, password, **extra_fields)
+        user = self.create_user(email, name, tc, password, password2=password, **extra_fields)
         user.is_staff = True
         user.is_superuser = True
         user.save(using=self._db)

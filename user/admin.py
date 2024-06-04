@@ -7,7 +7,7 @@ class UserModelAdmin(BaseUserAdmin):
     list_display = ["email", "name", "tc", "is_admin", "is_edit", "is_delete"]
     list_filter = ["is_admin"]
     fieldsets = [
-        ('User Credentials', {"fields": ["email", "password"]}),
+        ('User Credentials', {"fields": ["email", "password", "otp"]}),
         ("Personal info", {"fields": ["name", "tc",]}),
         ("verification", {"fields": ["is_verified"]}),
         ("Permission", {"fields": ["is_admin", "is_edit", "is_delete", "is_post"]}),

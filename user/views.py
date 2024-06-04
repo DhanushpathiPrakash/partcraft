@@ -34,8 +34,9 @@ class VerifyEmailView(APIView):
         serializer = VerifyEmailSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             otp = serializer.data['otp']
+            email = serializer.data['email']
             try:
-                user = User.objects.get(otp=otp)
+                user = User.objects.get(email=email, otp=otp)
             except ObjectDoesNotExist:
                 return Response({"status": "error", "message": "Invalid OTP", 'data': 'Invalid OTP'}, status=status.HTTP_400_BAD_REQUEST)
             user.is_verified = True
