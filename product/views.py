@@ -1,12 +1,21 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework import filters
 from rest_framework.permissions import IsAuthenticated
+from rest_framework import generics
 from user.permissions import *
 from .models import *
 from .serializers import *
+from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
 
 # Create your views here.
+class CustomPagination(PageNumberPagination):
+    page_size = 2
+    page_size_query_param = 'size'
+    max_page_size = 10
+
 class BestSellingView(APIView):
     serializer_class = ProductSerializer
     def get(self, request):
@@ -14,12 +23,24 @@ class BestSellingView(APIView):
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-class BrandView(APIView):
+class BrandView(generics.ListAPIView):
+    queryset = Brand.objects.all()
     serializer_class = BrandSerializer
-    def get(self, request):
-        brands = Brand.objects.all()
-        serializer = BrandSerializer(brands, many=True)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    pagination_class = CustomPagination
+    filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
+    filterset_fields = ('name',)
+    search_fields = ('^name',)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        if page is not None:
+            serializer = self.serializer_class(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = self.serializer_class(page, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class CarouselView(APIView):
     serializer_class = CarouselSerializer
