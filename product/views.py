@@ -8,6 +8,7 @@ from rest_framework import generics
 from user.permissions import *
 from .models import *
 from .serializers import *
+from user.serializers import UserProfileSerializer
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -126,7 +127,6 @@ class BuyNowAPIView(APIView):
         try:
             user = request.user
             data = request.data
-
             billing_address_data = data.get('billing_address', {})
             billing_address_data['user'] = user.id
             billing_serializer = BillingAddressSerializer(data=billing_address_data)
@@ -135,6 +135,7 @@ class BuyNowAPIView(APIView):
             else:
                 return Response(billing_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+            shipping_instance = None
             if data.get('use_same_address_for_shipping', False):
                 shipping_address_data = {
                     'user': user.id,
@@ -142,13 +143,14 @@ class BuyNowAPIView(APIView):
                     'email': billing_instance.email,
                     'shipping_address': billing_instance.billing_address,
                     'contact': billing_instance.contact,
-                    'use_same_address_for_shipping': True
+                    'use_same_address_for_shipping': True,
+                    'use_the_address_for_next_time': data.get('use_the_address_for_next_time', False)
                 }
                 shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
                 if shipping_serializer.is_valid():
                     shipping_instance = shipping_serializer.save()
                 else:
-                    billing_instance.delete()
+                    billing_instance.delete()  # Clean up the saved billing address if shipping address validation fails
                     return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             else:
                 shipping_address_data = data.get('shipping_address', {})
@@ -159,12 +161,21 @@ class BuyNowAPIView(APIView):
                 else:
                     billing_instance.delete()
                     return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            if data.get('use_the_address_for_next_time', False):
+                user_profile, created = Profile.objects.get_or_create(user=user)
+                user_profile.preferred_billing_address = billing_instance
+                user_profile.preferred_shipping_address = shipping_instance
+                user_profile.save()
+
+            # Prepare response data
             response_data = {
                 "message": "Addresses saved successfully.",
                 "billing_address": BillingAddressSerializer(billing_instance).data,
-                "shipping_address": ShippingAddressSerializer(shipping_instance).data
+                "shipping_address": ShippingAddressSerializer(shipping_instance).data if shipping_instance else None
             }
             return Response(response_data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
+            # Handle unexpected exceptions
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

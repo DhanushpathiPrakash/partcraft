@@ -17,20 +17,31 @@ class Product(models.Model):
     type = models.CharField(max_length=100, blank=True)
     full_title = models.CharField(max_length=500, blank=True)
     sales_count = models.IntegerField(default=0)
+    def __str__(self):
+        return self.title
 
 class Brand(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     name = models.CharField(max_length=100)
     image = models.URLField(max_length=500)
 
+    def __str__(self):
+        return self.name
+
 class Carousel(models.Model):
     image = models.URLField(max_length=500)
     title = models.CharField(max_length=200)
+
+    def __str__(self):
+        return self.title
 
 class Client(models.Model):
     image = models.URLField(max_length=500)
     data = models.TextField()
     name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
 
 class BillingAddress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -40,6 +51,10 @@ class BillingAddress(models.Model):
     billing_address = models.CharField(max_length=1000)
     contact = models.CharField(max_length=13)
     use_same_address_for_shipping = models.BooleanField(default=False)
+    use_the_address_for_next_time = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.billing_address
 
 class ShippingAddress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -48,6 +63,8 @@ class ShippingAddress(models.Model):
     shipping_address = models.CharField(max_length=1000)
     contact = models.CharField(max_length=13)
 
+    def __str__(self):
+        return self.shipping_address
 
 # class order(models.Model):
 #     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -55,4 +72,10 @@ class ShippingAddress(models.Model):
 #     order_id = models.CharField(max_length=15, unique=True)
 #     order_date = models.DateField(auto_now_add=True)
 
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    preferred_billing_address = models.ForeignKey(BillingAddress, null=True, blank=True, on_delete=models.SET_NULL, related_name='preferred_billing_user')
+    preferred_shipping_address = models.ForeignKey(ShippingAddress, null=True, blank=True, on_delete=models.SET_NULL, related_name='preferred_shipping_user')
 
+    def __str__(self):
+        return f"Profile for {self.user.email}"

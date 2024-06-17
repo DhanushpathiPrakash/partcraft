@@ -98,3 +98,5 @@ class User(AbstractBaseUser):
     @is_superuser.setter
     def is_superuser(self, value):
         self.is_admin = value
+
+

@@ -8,6 +8,8 @@ from django.contrib.auth import authenticate
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from product.models import Profile, BillingAddress, ShippingAddress
+from product.serializers import BillingAddressSerializer, ShippingAddressSerializer
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -59,9 +61,43 @@ class UserLoginSerializer(serializers.Serializer):
         return attrs
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+    preferred_billing_address = serializers.SerializerMethodField()
+    preferred_shipping_address = serializers.SerializerMethodField()
     class Meta:
-        model = User
-        fields = ['id', 'email', 'name']
+        model = Profile
+        fields = ['id', 'user', 'preferred_billing_address', 'preferred_shipping_address']
+    def get_user(self, obj):
+        user = obj.user
+        return {
+            'id': user.id,
+            'email': user.email,
+            'name': user.name,
+        }
+    def get_preferred_billing_address(self, obj):
+        try:
+            billing_address = obj.preferred_billing_address
+            if billing_address:
+                return BillingAddressSerializer(billing_address).data
+            else:
+                return None
+        except BillingAddress.DoesNotExist:
+            return None
+    def get_preferred_shipping_address(self, obj):
+        try:
+            shipping_address = obj.preferred_shipping_address
+            if shipping_address:
+                return ShippingAddressSerializer(shipping_address).data
+            else:
+                return None
+        except ShippingAddress.DoesNotExist:
+            return None
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['user'] = self.get_user(instance)
+        data['preferred_billing_address'] = self.get_preferred_billing_address(instance)
+        data['preferred_shipping_address'] = self.get_preferred_shipping_address(instance)
+        return data
 
 class UserChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField(max_length=255, style={'input_type': 'password'}, write_only=True)

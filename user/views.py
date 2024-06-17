@@ -64,9 +64,15 @@ class UserLoginView(APIView):
 class UserProfileView(APIView):
     serializer_class = UserProfileSerializer
     permission_classes = (IsAuthenticated,)
-    def get(self, request):
-        serializer = UserProfileSerializer(request.user)
-        return Response(serializer.data)
+    def get(self, request, *args, **kwargs):
+        try:
+            user_profile = Profile.objects.get(user=request.user)
+            serializer = UserProfileSerializer(user_profile)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Profile.DoesNotExist:
+            return Response({"detail": "User profile does not exist."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 class UserChangePasswordView(APIView):
     serializer_class = UserChangePasswordSerializer
