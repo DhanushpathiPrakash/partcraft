@@ -13,6 +13,7 @@ from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
+import logging
 
 # Create your views here.
 class CustomPagination(PageNumberPagination):
@@ -144,7 +145,7 @@ class BuyNowAPIView(APIView):
                     'shipping_address': billing_instance.billing_address,
                     'contact': billing_instance.contact,
                     'use_same_address_for_shipping': True,
-                    'use_the_address_for_next_time': data.get('use_the_address_for_next_time', False)
+                    'use_the_address_for_next_time': True,
                 }
                 shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
                 if shipping_serializer.is_valid():
@@ -178,4 +179,31 @@ class BuyNowAPIView(APIView):
 
         except Exception as e:
             # Handle unexpected exceptions
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class OrderSummaryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        try:
+            # Fetch user profile
+            user_profile = Profile.objects.filter(user=user).first()
+
+            if not user_profile:
+                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            # Fetch preferred billing and shipping addresses
+            preferred_billing_address = user_profile.preferred_billing_address
+            preferred_shipping_address = user_profile.preferred_shipping_address
+
+            response_data = {
+                "preferred_billing_address": BillingAddressSerializer(
+                    preferred_billing_address).data if preferred_billing_address else None,
+                "preferred_shipping_address": ShippingAddressSerializer(
+                    preferred_shipping_address).data if preferred_shipping_address else None,
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.exception("Error in OrderSummaryAPIView")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)

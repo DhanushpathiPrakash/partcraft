@@ -8,5 +8,5 @@ urlpatterns = [
     path('v1/carousel/<int:pk>/', CarouselView.as_view()),
     path('v1/client-feedback/', ClientView.as_view(), name='client-feedback'),
     path('v1/address/', BuyNowAPIView.as_view(), name='address'),
-
+    path('v1/order', OrderSummaryAPIView.as_view(), name='order'),
 ]

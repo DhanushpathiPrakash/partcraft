@@ -117,7 +117,7 @@ DATABASES = {
     }
 }
 
-DATABASES['default'] = dj_database_url.parse("postgres://partscraft_hpk6_user:4AAhFJPV5xuTzuEbCf4uMc04gGKWZ0ob@dpg-cpat0kcf7o1s73amfa10-a.oregon-postgres.render.com/partscraft_hpk6")
+DATABASES['default'] = dj_database_url.parse("postgres://partscraft_buqu_user:ITvVjy3N60RlhQiNGPm5IEEqGIl7WUxR@dpg-cpo7a8iju9rs73asen50-a.oregon-postgres.render.com/partscraft_buqu")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

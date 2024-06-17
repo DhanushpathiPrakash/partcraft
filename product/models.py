@@ -66,16 +66,17 @@ class ShippingAddress(models.Model):
     def __str__(self):
         return self.shipping_address
 
-# class order(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-#     order_id = models.CharField(max_length=15, unique=True)
-#     order_date = models.DateField(auto_now_add=True)
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     preferred_billing_address = models.ForeignKey(BillingAddress, null=True, blank=True, on_delete=models.SET_NULL, related_name='preferred_billing_user')
     preferred_shipping_address = models.ForeignKey(ShippingAddress, null=True, blank=True, on_delete=models.SET_NULL, related_name='preferred_shipping_user')
 
     def __str__(self):
         return f"Profile for {self.user.email}"
+
+# class order(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+#     order_id = models.CharField(max_length=15, unique=True)
+#     order_date = models.DateField(auto_now_add=True)
