@@ -18,7 +18,7 @@ class Product(models.Model):
     full_title = models.CharField(max_length=500, blank=True)
     sales_count = models.IntegerField(default=0)
     def __str__(self):
-        return self.title
+        return f"{self.id}"
 
 class Brand(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
