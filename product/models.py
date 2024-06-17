@@ -1,5 +1,7 @@
 from decimal import Decimal
 from django.db import models
+import time
+from user.models import User
 
 # Create your models here.
 class Product(models.Model):
@@ -29,3 +31,28 @@ class Client(models.Model):
     image = models.URLField(max_length=500)
     data = models.TextField()
     name = models.CharField(max_length=255)
+
+class BillingAddress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    billing_name = models.CharField(max_length=255)
+    gst_number = models.CharField(max_length=16, blank=True, null=True)
+    email = models.EmailField(max_length=255)
+    billing_address = models.CharField(max_length=1000)
+    contact = models.CharField(max_length=13)
+    use_same_address_for_shipping = models.BooleanField(default=False)
+
+class ShippingAddress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    shipping_name = models.CharField(max_length=255)
+    email = models.EmailField(max_length=255)
+    shipping_address = models.CharField(max_length=1000)
+    contact = models.CharField(max_length=13)
+
+
+# class order(models.Model):
+#     user = models.ForeignKey(User, on_delete=models.CASCADE)
+#     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+#     order_id = models.CharField(max_length=15, unique=True)
+#     order_date = models.DateField(auto_now_add=True)
+
+

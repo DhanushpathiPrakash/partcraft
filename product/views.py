@@ -1,3 +1,4 @@
+from django_filters import FilterSet
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -9,6 +10,8 @@ from .models import *
 from .serializers import *
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
 
 # Create your views here.
 class CustomPagination(PageNumberPagination):
@@ -16,8 +19,13 @@ class CustomPagination(PageNumberPagination):
     page_size_query_param = 'size'
     max_page_size = 10
 
+class CustomThrottle(AnonRateThrottle):
+    scope = 'custom'
+
+
 class BestSellingView(APIView):
     serializer_class = ProductSerializer
+    throttle_classes = [UserRateThrottle, AnonRateThrottle]
     def get(self, request):
         products = Product.objects.filter(sales_count__gte=50)
         serializer = ProductSerializer(products, many=True)
@@ -30,6 +38,8 @@ class BrandView(generics.ListAPIView):
     filter_backends = (DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter)
     filterset_fields = ('name',)
     search_fields = ('^name',)
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'brand'
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -44,6 +54,7 @@ class BrandView(generics.ListAPIView):
 
 class CarouselView(APIView):
     serializer_class = CarouselSerializer
+    throttle_classes = [CustomThrottle]
     def get(self, request):
         carousels = Carousel.objects.all()
         serializer = CarouselSerializer(carousels, many=True)
@@ -106,3 +117,54 @@ class ClientView(APIView):
         else:
             return Response("message:No Permission ", status=status.HTTP_404_NOT_FOUND)
         return Response("message:No Permission ", status=status.HTTP_400_BAD_REQUEST)
+
+
+class BuyNowAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        try:
+            user = request.user
+            data = request.data
+
+            billing_address_data = data.get('billing_address', {})
+            billing_address_data['user'] = user.id
+            billing_serializer = BillingAddressSerializer(data=billing_address_data)
+            if billing_serializer.is_valid():
+                billing_instance = billing_serializer.save()
+            else:
+                return Response(billing_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            if data.get('use_same_address_for_shipping', False):
+                shipping_address_data = {
+                    'user': user.id,
+                    'shipping_name': billing_instance.billing_name,
+                    'email': billing_instance.email,
+                    'shipping_address': billing_instance.billing_address,
+                    'contact': billing_instance.contact,
+                    'use_same_address_for_shipping': True
+                }
+                shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
+                if shipping_serializer.is_valid():
+                    shipping_instance = shipping_serializer.save()
+                else:
+                    billing_instance.delete()
+                    return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                shipping_address_data = data.get('shipping_address', {})
+                shipping_address_data['user'] = user.id
+                shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
+                if shipping_serializer.is_valid():
+                    shipping_instance = shipping_serializer.save()
+                else:
+                    billing_instance.delete()
+                    return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            response_data = {
+                "message": "Addresses saved successfully.",
+                "billing_address": BillingAddressSerializer(billing_instance).data,
+                "shipping_address": ShippingAddressSerializer(shipping_instance).data
+            }
+            return Response(response_data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
