@@ -131,12 +131,14 @@ class BuyNowAPIView(APIView):
             billing_address_data = data.get('billing_address', {})
             billing_address_data['user'] = user.id
             billing_serializer = BillingAddressSerializer(data=billing_address_data)
+            print(billing_serializer)
             if billing_serializer.is_valid():
                 billing_instance = billing_serializer.save()
             else:
                 return Response(billing_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             shipping_instance = None
+            print(shipping_instance)
             if data.get('use_same_address_for_shipping', False):
                 shipping_address_data = {
                     'user': user.id,
@@ -144,8 +146,8 @@ class BuyNowAPIView(APIView):
                     'email': billing_instance.email,
                     'shipping_address': billing_instance.billing_address,
                     'contact': billing_instance.contact,
-                    'use_same_address_for_shipping': True,
-                    'use_the_address_for_next_time': True,
+                    'use_same_address_for_shipping': billing_instance.use_same_address_for_shipping,
+                    'use_the_address_for_next_time': billing_instance.use_the_address_for_next_time,
                 }
                 shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
                 if shipping_serializer.is_valid():
@@ -168,6 +170,7 @@ class BuyNowAPIView(APIView):
                 user_profile.preferred_billing_address = billing_instance
                 user_profile.preferred_shipping_address = shipping_instance
                 user_profile.save()
+                print(user_profile)
 
             # Prepare response data
             response_data = {
@@ -187,13 +190,11 @@ class OrderSummaryAPIView(APIView):
     def get(self, request):
         user = request.user
         try:
-            # Fetch user profile
             user_profile = Profile.objects.filter(user=user).first()
 
             if not user_profile:
                 return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            # Fetch preferred billing and shipping addresses
             preferred_billing_address = user_profile.preferred_billing_address
             preferred_shipping_address = user_profile.preferred_shipping_address
 
@@ -203,7 +204,7 @@ class OrderSummaryAPIView(APIView):
                 "preferred_shipping_address": ShippingAddressSerializer(
                     preferred_shipping_address).data if preferred_shipping_address else None,
             }
+            print(response_data)
             return Response(response_data, status=status.HTTP_200_OK)
         except Exception as e:
-            logger.exception("Error in OrderSummaryAPIView")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
