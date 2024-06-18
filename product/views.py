@@ -128,50 +128,51 @@ class BuyNowAPIView(APIView):
         try:
             user = request.user
             data = request.data
+            print("DATA 2", data)
             billing_address_data = data.get('billing_address', {})
             billing_address_data['user'] = user.id
+            billing_address_data['use_same_address_for_shipping'] = data.get('use_same_address_for_shipping', False)
+            billing_address_data['use_the_address_for_next_time'] = data.get('use_the_address_for_next_time', False)
             billing_serializer = BillingAddressSerializer(data=billing_address_data)
-            print(billing_serializer)
+            print("DATA 2", billing_serializer)
             if billing_serializer.is_valid():
                 billing_instance = billing_serializer.save()
             else:
                 return Response(billing_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
             shipping_instance = None
-            print(shipping_instance)
             if data.get('use_same_address_for_shipping', False):
+                # Use billing address for shipping
                 shipping_address_data = {
                     'user': user.id,
                     'shipping_name': billing_instance.billing_name,
                     'email': billing_instance.email,
                     'shipping_address': billing_instance.billing_address,
                     'contact': billing_instance.contact,
-                    'use_same_address_for_shipping': billing_instance.use_same_address_for_shipping,
-                    'use_the_address_for_next_time': billing_instance.use_the_address_for_next_time,
+                    'use_same_address_for_shipping': False,
+                    'use_the_address_for_next_time': False,
                 }
-                shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
-                if shipping_serializer.is_valid():
-                    shipping_instance = shipping_serializer.save()
-                else:
-                    billing_instance.delete()  # Clean up the saved billing address if shipping address validation fails
-                    return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                print("DATA 3", shipping_address_data)
             else:
                 shipping_address_data = data.get('shipping_address', {})
                 shipping_address_data['user'] = user.id
-                shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
-                if shipping_serializer.is_valid():
-                    shipping_instance = shipping_serializer.save()
-                else:
-                    billing_instance.delete()
-                    return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            if data.get('use_the_address_for_next_time', False):
+            shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
+            if shipping_serializer.is_valid():
+                shipping_instance = shipping_serializer.save()
+            else:
+                billing_instance.delete()  # Clean up the saved billing address if shipping address validation fails
+                return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Update user profile if requested
+            if data.get('use_the_address_for_next_time', True):
                 user_profile, created = Profile.objects.get_or_create(user=user)
                 user_profile.preferred_billing_address = billing_instance
                 user_profile.preferred_shipping_address = shipping_instance
                 user_profile.save()
-                print(user_profile)
 
+                print("DATA USER PROFILE:", user_profile.preferred_billing_address, user_profile.preferred_shipping_address)
+                print("DATA PROFILE:", user_profile)
             # Prepare response data
             response_data = {
                 "message": "Addresses saved successfully.",
@@ -183,6 +184,8 @@ class BuyNowAPIView(APIView):
         except Exception as e:
             # Handle unexpected exceptions
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 class OrderSummaryAPIView(APIView):
     permission_classes = [IsAuthenticated]
