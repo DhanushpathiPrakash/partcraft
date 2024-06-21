@@ -255,6 +255,7 @@ class OrderAPIView(APIView):
                 return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
             order_items = request.data.get('order_items', [])
+            print(order_items)
             if not order_items:
                 return Response({"detail": "No order items."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -262,6 +263,7 @@ class OrderAPIView(APIView):
             for item in order_items:
                 product_id = item.get('product_id')
                 quantity = item.get('quantity', 1)
+                print(product_id, quantity)
                 try:
                     product = Product.objects.get(id=product_id)
                 except Product.DoesNotExist:
@@ -278,17 +280,16 @@ class OrderAPIView(APIView):
                 product_order_count, created = ProductOrderCount.objects.get_or_create(product=product)
                 product_order_count.order_count += quantity
                 product_order_count.save()
+                print(product_order_count)
                 orders.append(order)
+                print(orders)
 
                 response_data = {
-                    "preferred_billing_address": BillingAddressSerializer(
-                        preferred_billing_address).data if preferred_billing_address else None,
-                    "preferred_shipping_address": ShippingAddressSerializer(
-                        preferred_shipping_address).data if preferred_shipping_address else None,
-                    "order_items": order_items,
-                    "grand_total": grand_total,
+                    "Thank you for your order!"
+                    "Order Details": OrderSerializer(order).data
                 }
-            return Response({"message": "order has been placed"}, status=status.HTTP_201_CREATED)
+                print(response_data)
+                return Response(response_data, status=status.HTTP_201_CREATED)
         except Exception as e:
             print(e)
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
