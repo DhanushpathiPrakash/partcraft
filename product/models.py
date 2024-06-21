@@ -2,6 +2,13 @@ from decimal import Decimal
 from django.db import models
 import time
 from user.models import User
+from datetime import datetime
+import random
+
+def order_gen_id():
+    timestamp = datetime.now().strftime('%m%d%Y')
+    num = random.randint(10000, 99999)
+    return f'{timestamp}-{num}'
 
 # Create your models here.
 class Product(models.Model):
@@ -11,27 +18,24 @@ class Product(models.Model):
     logo = models.URLField(max_length=500)
     title = models.CharField(max_length=200)
     part_no = models.CharField(max_length=50)
-    discount = models.CharField(max_length=20)
-    discount_price = models.DecimalField(max_digits=10, decimal_places=2)
-    actual_price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
     type = models.CharField(max_length=100, blank=True)
+    image1 = models.ImageField(upload_to="products/", blank=True, null=True)
     full_title = models.CharField(max_length=500, blank=True)
-    sales_count = models.IntegerField(default=0)
     def __str__(self):
-        return f"{self.id}"
+        return f"{self.id}{self.title}"
+
 
 class Brand(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     name = models.CharField(max_length=100)
     image = models.URLField(max_length=500)
-
     def __str__(self):
         return self.name
 
 class Carousel(models.Model):
     image = models.URLField(max_length=500)
     title = models.CharField(max_length=200)
-
     def __str__(self):
         return self.title
 
@@ -43,6 +47,7 @@ class Client(models.Model):
     def __str__(self):
         return self.name
 
+##-------shipping address -------------------------------------------------------
 class BillingAddress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     billing_name = models.CharField(max_length=255)
@@ -75,8 +80,23 @@ class Profile(models.Model):
     def __str__(self):
         return f"Profile for {self.user.email}"
 
-# class order(models.Model):
-#     user = models.ForeignKey(User, on_delete=models.CASCADE)
-#     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-#     order_id = models.CharField(max_length=15, unique=True)
-#     order_date = models.DateField(auto_now_add=True)
+class Order(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    shipping_address = models.ForeignKey(ShippingAddress, on_delete=models.SET_NULL, null=True, blank=True)
+    billing_address = models.ForeignKey(BillingAddress, on_delete=models.SET_NULL, null=True, blank=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    order_id = models.CharField(max_length=15, unique=True)
+    order_date = models.DateField(auto_now_add=True)
+    quantity = models.IntegerField(default=1)
+
+    def save(self, *args, **kwargs):
+        if not self.order_id:
+            self.order_id = order_gen_id()
+        super(Order, self).save(*args, **kwargs)
+
+class ProductOrderCount(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    order_count = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.product} - {self.order_count}"

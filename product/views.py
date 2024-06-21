@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django_filters import FilterSet
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -13,8 +14,7 @@ from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
-import logging
-
+from collections import Counter
 # Create your views here.
 class CustomPagination(PageNumberPagination):
     page_size = 2
@@ -142,7 +142,6 @@ class BuyNowAPIView(APIView):
 
             shipping_instance = None
             if data.get('use_same_address_for_shipping', False):
-                # Use billing address for shipping
                 shipping_address_data = {
                     'user': user.id,
                     'shipping_name': billing_instance.billing_name,
@@ -161,10 +160,9 @@ class BuyNowAPIView(APIView):
             if shipping_serializer.is_valid():
                 shipping_instance = shipping_serializer.save()
             else:
-                billing_instance.delete()  # Clean up the saved billing address if shipping address validation fails
+                billing_instance.delete()
                 return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # Update user profile if requested
             if data.get('use_the_address_for_next_time', True):
                 user_profile, created = Profile.objects.get_or_create(user=user)
                 user_profile.preferred_billing_address = billing_instance
@@ -173,7 +171,6 @@ class BuyNowAPIView(APIView):
 
                 print("DATA USER PROFILE:", user_profile.preferred_billing_address, user_profile.preferred_shipping_address)
                 print("DATA PROFILE:", user_profile)
-            # Prepare response data
             response_data = {
                 "message": "Addresses saved successfully.",
                 "billing_address": BillingAddressSerializer(billing_instance).data,
@@ -182,14 +179,12 @@ class BuyNowAPIView(APIView):
             return Response(response_data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            # Handle unexpected exceptions
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
 class OrderSummaryAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
     def get(self, request):
         user = request.user
         try:
@@ -201,13 +196,102 @@ class OrderSummaryAPIView(APIView):
             preferred_billing_address = user_profile.preferred_billing_address
             preferred_shipping_address = user_profile.preferred_shipping_address
 
+            products_data = request.query_params.getlist('products')
+            if not products_data:
+                return Response({"detail": "No products."}, status=status.HTTP_400_BAD_REQUEST)
+
+            order_items = []
+            grand_total = 0
+
+            for product_data in products_data:
+                product_id, quantity = product_data.split(',')
+                quantity = int(quantity)
+
+                try:
+                    product = Product.objects.get(id=product_id)
+                except Product.DoesNotExist:
+                    return Response({"detail": f"Product with id {product_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+
+                total = product.price * quantity
+                grand_total += total
+
+                product_image1 = product.image1.url if product.image1 and hasattr(product.image1, 'url') else None
+
+                order_items.append({
+                    "product_id": product.id,
+                    "product_name": product.title,
+                    "product_category": product.category,
+                    "product_image": product.image,
+                    "product_image2": product_image1,
+                    "quantity": quantity,
+                    "total": total,
+                })
+
+                set_cookies = request.COOKIES
+                set_cookies['product_id', 'quantity'] = product.id, quantity
+                print(set_cookies)
+
             response_data = {
                 "preferred_billing_address": BillingAddressSerializer(
                     preferred_billing_address).data if preferred_billing_address else None,
                 "preferred_shipping_address": ShippingAddressSerializer(
                     preferred_shipping_address).data if preferred_shipping_address else None,
+                "order_items": order_items,
+                "grand_total": grand_total,
             }
-            print(response_data)
             return Response(response_data, status=status.HTTP_200_OK)
+        except ObjectDoesNotExist:
+            return Response({"detail": "An error occurred with the object retrieval."}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class OrderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        user = request.user
+        try:
+            user_profile = Profile.objects.filter(user=user).first()
+            if not user_profile:
+                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            order_items = request.data.get('order_items', [])
+            if not order_items:
+                return Response({"detail": "No order items."}, status=status.HTTP_400_BAD_REQUEST)
+
+            orders = []
+            for item in order_items:
+                product_id = item.get('product_id')
+                quantity = item.get('quantity', 1)
+                try:
+                    product = Product.objects.get(id=product_id)
+                except Product.DoesNotExist:
+                    return Response({"detail":"Product was not found"}, status=status.HTTP_404_NOT_FOUND)
+
+                order = Order.objects.create(
+                    user=user,
+                    product_id=product_id,
+                    quantity=quantity,
+                    billing_address=user_profile.preferred_billing_address,
+                    shipping_address=user_profile.preferred_shipping_address,
+                )
+
+                product_order_count, created = ProductOrderCount.objects.get_or_create(product=product)
+                product_order_count.order_count += quantity
+                product_order_count.save()
+                orders.append(order)
+
+                response_data = {
+                    "preferred_billing_address": BillingAddressSerializer(
+                        preferred_billing_address).data if preferred_billing_address else None,
+                    "preferred_shipping_address": ShippingAddressSerializer(
+                        preferred_shipping_address).data if preferred_shipping_address else None,
+                    "order_items": order_items,
+                    "grand_total": grand_total,
+                }
+            return Response({"message": "order has been placed"}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            print(e)
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+

@@ -27,11 +27,13 @@ class BillingAddressSerializer(serializers.ModelSerializer):
         model = BillingAddress
         fields = '__all__'
 
-
-
-
 class ShippingAddressSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
     class Meta:
         model = ShippingAddress
+        fields = '__all__'
+
+class OrderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Order
         fields = '__all__'
