@@ -123,176 +123,169 @@ class ClientView(APIView):
 
 class BuyNowAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
     def post(self, request, *args, **kwargs):
-        try:
-            user = request.user
-            data = request.data
-            print("DATA 2", data)
-            billing_address_data = data.get('billing_address', {})
-            billing_address_data['user'] = user.id
-            billing_address_data['use_same_address_for_shipping'] = data.get('use_same_address_for_shipping', False)
-            billing_address_data['use_the_address_for_next_time'] = data.get('use_the_address_for_next_time', False)
-            billing_serializer = BillingAddressSerializer(data=billing_address_data)
-            print("DATA 2", billing_serializer)
-            if billing_serializer.is_valid():
-                billing_instance = billing_serializer.save()
-            else:
-                return Response(billing_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        user = request.user
+        data = request.data
+        print("DATA 2", data)
+        billing_address_data = data.get('billing_address', {})
+        billing_address_data['user'] = user.id
+        billing_address_data['use_same_address_for_shipping'] = data.get('use_same_address_for_shipping', False)
+        billing_address_data['use_the_address_for_next_time'] = data.get('use_the_address_for_next_time', False)
+        billing_serializer = BillingAddressSerializer(data=billing_address_data)
+        print("DATA 2", billing_serializer)
+        if billing_serializer.is_valid():
+            billing_instance = billing_serializer.save()
+        else:
+            return Response(billing_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            shipping_instance = None
-            if data.get('use_same_address_for_shipping', False):
-                shipping_address_data = {
-                    'user': user.id,
-                    'shipping_name': billing_instance.billing_name,
-                    'email': billing_instance.email,
-                    'shipping_address': billing_instance.billing_address,
-                    'contact': billing_instance.contact,
-                    'use_same_address_for_shipping': False,
-                    'use_the_address_for_next_time': False,
-                }
-                print("DATA 3", shipping_address_data)
-            else:
-                shipping_address_data = data.get('shipping_address', {})
-                shipping_address_data['user'] = user.id
+        shipping_instance = None
+        if data.get('use_same_address_for_shipping', False):
+            shipping_address_data = {
+                'user': user.id,
+                'shipping_name': billing_instance.billing_name,
+                'email': billing_instance.email,
+                'shipping_address': billing_instance.billing_address,
+                'contact': billing_instance.contact,
+                'use_same_address_for_shipping': False,
+                'use_the_address_for_next_time': False,
+            }
+            print("DATA 3", shipping_address_data)
+        else:
+            shipping_address_data = data.get('shipping_address', {})
+            shipping_address_data['user'] = user.id
 
-            shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
-            if shipping_serializer.is_valid():
-                shipping_instance = shipping_serializer.save()
-            else:
-                billing_instance.delete()
-                return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        shipping_serializer = ShippingAddressSerializer(data=shipping_address_data)
+        if shipping_serializer.is_valid():
+            shipping_instance = shipping_serializer.save()
+        else:
+            billing_instance.delete()
+            return Response(shipping_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            if data.get('use_the_address_for_next_time', True):
-                user_profile, created = Profile.objects.get_or_create(user=user)
-                user_profile.preferred_billing_address = billing_instance
-                user_profile.preferred_shipping_address = shipping_instance
-                user_profile.save()
+        if data.get('use_the_address_for_next_time', True):
+            user_profile, created = Profile.objects.get_or_create(user=user)
+            user_profile.preferred_billing_address = billing_instance
+            user_profile.preferred_shipping_address = shipping_instance
+            user_profile.save()
 
-                print("DATA USER PROFILE:", user_profile.preferred_billing_address, user_profile.preferred_shipping_address)
-                print("DATA PROFILE:", user_profile)
+            print("DATA USER PROFILE:", user_profile.preferred_billing_address, user_profile.preferred_shipping_address)
+            print("DATA PROFILE:", user_profile)
             response_data = {
                 "message": "Addresses saved successfully.",
                 "billing_address": BillingAddressSerializer(billing_instance).data,
                 "shipping_address": ShippingAddressSerializer(shipping_instance).data if shipping_instance else None
             }
             return Response(response_data, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response("message:No Permission ", status=status.HTTP_404_NOT_FOUND)
 
 
 
 class OrderSummaryAPIView(APIView):
     permission_classes = [IsAuthenticated]
+
     def get(self, request):
         user = request.user
-        try:
-            user_profile = Profile.objects.filter(user=user).first()
+        user_profile = Profile.objects.filter(user=user).first()
+        if not user_profile:
+            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            if not user_profile:
-                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        preferred_billing_address = user_profile.preferred_billing_address
+        preferred_shipping_address = user_profile.preferred_shipping_address
 
-            preferred_billing_address = user_profile.preferred_billing_address
-            preferred_shipping_address = user_profile.preferred_shipping_address
+        products_data = request.query_params.getlist('products')
+        if not products_data:
+            return Response({"detail": "No products."}, status=status.HTTP_400_BAD_REQUEST)
 
-            products_data = request.query_params.getlist('products')
-            if not products_data:
-                return Response({"detail": "No products."}, status=status.HTTP_400_BAD_REQUEST)
+        order_items = []
+        grand_total = 0
 
-            order_items = []
-            grand_total = 0
+        for product_data in products_data:
+            product_id, quantity = product_data.split(',')
+            quantity = int(quantity)
 
-            for product_data in products_data:
-                product_id, quantity = product_data.split(',')
-                quantity = int(quantity)
+            product = Product.objects.get(id=product_id)
+            total = product.price * quantity
+            grand_total += total
 
-                try:
-                    product = Product.objects.get(id=product_id)
-                except Product.DoesNotExist:
-                    return Response({"detail": f"Product with id {product_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+            product_image1 = product.image1.url if product.image1 and hasattr(product.image1, 'url') else None
 
-                total = product.price * quantity
-                grand_total += total
+            order_items.append({
+                "product_id": product.id,
+                "product_name": product.title,
+                "product_category": product.category,
+                "product_image": product.image,
+                "product_image2": product_image1,
+                "quantity": quantity,
+                "total": total,
+            })
 
-                product_image1 = product.image1.url if product.image1 and hasattr(product.image1, 'url') else None
+        response = Response(status=status.HTTP_200_OK)
+        for item in order_items:
+            cookie_name = f'product_{item["product_id"]}'
+            cookie_value = item["quantity"]
+            response.set_cookie(cookie_name, cookie_value, httponly=True, secure=False, samesite='Lax')
 
-                order_items.append({
-                    "product_id": product.id,
-                    "product_name": product.title,
-                    "product_category": product.category,
-                    "product_image": product.image,
-                    "product_image2": product_image1,
-                    "quantity": quantity,
-                    "total": total,
-                })
-
-                set_cookies = request.COOKIES
-                set_cookies['product_id', 'quantity'] = product.id, quantity
-                print(set_cookies)
-
-            response_data = {
-                "preferred_billing_address": BillingAddressSerializer(
-                    preferred_billing_address).data if preferred_billing_address else None,
-                "preferred_shipping_address": ShippingAddressSerializer(
-                    preferred_shipping_address).data if preferred_shipping_address else None,
-                "order_items": order_items,
-                "grand_total": grand_total,
-            }
-            return Response(response_data, status=status.HTTP_200_OK)
-        except ObjectDoesNotExist:
-            return Response({"detail": "An error occurred with the object retrieval."}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        response.data = {
+            "preferred_billing_address": BillingAddressSerializer(preferred_billing_address).data if preferred_billing_address else None,
+            "preferred_shipping_address": ShippingAddressSerializer(preferred_shipping_address).data if preferred_shipping_address else None,
+            "order_items": order_items,
+            "grand_total": grand_total,
+        }
+        return response
 
 class OrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         user = request.user
-        try:
-            user_profile = Profile.objects.filter(user=user).first()
-            if not user_profile:
-                return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+        user_profile = Profile.objects.filter(user=user).first()
+        if not user_profile:
+            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-            order_items = request.data.get('order_items', [])
-            print(order_items)
-            if not order_items:
-                return Response({"detail": "No order items."}, status=status.HTTP_400_BAD_REQUEST)
+        order_items = []
+        print("Cookies present in the request:")
+        for key, value in request.COOKIES.items():
+            print(f"{key}: {value}")
+            if key.startswith('product_'):
+                product_id = key.split('_')[1]
+                quantity = int(value)
+                print(f"get cookie {key} = {quantity}")
+                order_items.append({"product_id": product_id, "quantity": quantity})
 
-            orders = []
-            for item in order_items:
-                product_id = item.get('product_id')
-                quantity = item.get('quantity', 1)
-                print(product_id, quantity)
-                try:
-                    product = Product.objects.get(id=product_id)
-                except Product.DoesNotExist:
-                    return Response({"detail":"Product was not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not order_items:
+            print("No order items found in cookies")
+            return Response({"detail": "No order items."}, status=status.HTTP_400_BAD_REQUEST)
 
-                order = Order.objects.create(
-                    user=user,
-                    product_id=product_id,
-                    quantity=quantity,
-                    billing_address=user_profile.preferred_billing_address,
-                    shipping_address=user_profile.preferred_shipping_address,
-                )
+        orders = []
+        for item in order_items:
+            product_id = item['product_id']
+            quantity = item['quantity']
 
-                product_order_count, created = ProductOrderCount.objects.get_or_create(product=product)
-                product_order_count.order_count += quantity
-                product_order_count.save()
-                print(product_order_count)
-                orders.append(order)
-                print(orders)
+            product = Product.objects.get(id=product_id)
+            order = Order.objects.create(
+                user=user,
+                product=product,
+                quantity=quantity,
+                billing_address=user_profile.preferred_billing_address,
+                shipping_address=user_profile.preferred_shipping_address,
+            )
 
-                response_data = {
-                    "Thank you for your order!"
-                    "Order Details": OrderSerializer(order).data
-                }
-                print(response_data)
-                return Response(response_data, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            print(e)
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            product_order_count, created = ProductOrderCount.objects.get_or_create(product=product)
+            product_order_count.order_count += quantity
+            product_order_count.save()
+            orders.append(order)
+
+        response_data = {
+            "message": "Thank you for your order!",
+            "order_details": [OrderSerializer(order).data for order in orders]
+        }
+        response = Response(response_data, status=status.HTTP_201_CREATED)
+
+        for item in order_items:
+            cookie_name = f'product_{item["product_id"]}'
+            print(f"Delete cookie {cookie_name}")
+            response.delete_cookie(cookie_name)
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 
