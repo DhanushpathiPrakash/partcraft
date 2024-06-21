@@ -2,7 +2,9 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import send_mail, EmailMessage
 import random
+from product.models import Order, Product
 from .models import *
+import json
 
 def send_otp_via_email(email):
     try:
@@ -31,3 +33,4 @@ class Util:
             to=[data['to_email']],
         )
         email.send()
+

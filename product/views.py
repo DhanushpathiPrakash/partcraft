@@ -15,6 +15,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
 from collections import Counter
+
 # Create your views here.
 class CustomPagination(PageNumberPagination):
     page_size = 2
@@ -282,10 +283,9 @@ class OrderAPIView(APIView):
 
         for item in order_items:
             cookie_name = f'product_{item["product_id"]}'
-            print(f"Delete cookie {cookie_name}")
+            print(f"Deleting cookie {cookie_name}")
             response.delete_cookie(cookie_name)
-
-        return Response(response_data, status=status.HTTP_200_OK)
+        return response
 
 
 
