@@ -15,7 +15,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.throttling import UserRateThrottle, AnonRateThrottle, ScopedRateThrottle
 from collections import Counter
-
+from user.emails import send_confirmation_email
 # Create your views here.
 class CustomPagination(PageNumberPagination):
     page_size = 2
@@ -280,7 +280,6 @@ class OrderAPIView(APIView):
             "order_details": [OrderSerializer(order).data for order in orders]
         }
         try:
-            from account.emails import send_confirmation_email
             most_recent_order = orders[-1]
             data = {
                 'order_id': most_recent_order.id,
