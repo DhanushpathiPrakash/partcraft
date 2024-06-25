@@ -279,6 +279,17 @@ class OrderAPIView(APIView):
             "message": "Thank you for your order!",
             "order_details": [OrderSerializer(order).data for order in orders]
         }
+        try:
+            from account.emails import send_confirmation_email
+            most_recent_order = orders[-1]
+            data = {
+                'order_id': most_recent_order.id,
+                'to_email': user.email,
+            }
+            send_confirmation_email(data)
+        except Exception as e:
+            print(e)
+
         response = Response(response_data, status=status.HTTP_201_CREATED)
 
         for item in order_items:
